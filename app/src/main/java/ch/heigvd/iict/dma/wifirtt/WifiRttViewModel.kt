@@ -38,8 +38,8 @@ class WifiRttViewModel : ViewModel() {
 
     fun onNewRangingResults(newResults : List<RangingResult>) {
         //TODO we need to update encapsulated list of <RangedAccessPoint> in
-        _rangedAccessPoints
-
+        _rangedAccessPoints.postValue(newResults.map { RangedAccessPoint.newInstance(it) })
+        
         // when the list is updated, we also want to update estimated location
         estimateLocation()
     }
