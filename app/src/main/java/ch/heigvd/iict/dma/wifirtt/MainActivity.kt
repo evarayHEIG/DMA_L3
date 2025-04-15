@@ -41,8 +41,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var wifiManager: WifiManager
     private lateinit var wifiRttManager : WifiRttManager
-    val scannedAp = mutableListOf<ScanResult>()
-    val scanResult = mutableMapOf<String, ScanResult>()
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,7 +92,8 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     fun scanAndRange() {
-        Log.e("salut", scanResult.toString())
+
+        Log.e("scanned", wifiManager.scanResults.toString())
         val req: RangingRequest = RangingRequest.Builder().run {
             wifiManager.scanResults.filter{it.is80211mcResponder}.forEach{result -> addAccessPoint(result)}
 
@@ -104,7 +104,9 @@ class MainActivity : AppCompatActivity() {
                 override fun onRangingResults(results: List<RangingResult>) {
                     val successResults = results.filter { it.status == RangingResult.STATUS_SUCCESS }
                     wifiRttViewModel.onNewRangingResults(successResults)
+                    Log.d(TAG, "$successResults")
                 }
+
 
                 override fun onRangingFailure(code: Int) {
                     Log.e(TAG, "Ranging failure: $code")

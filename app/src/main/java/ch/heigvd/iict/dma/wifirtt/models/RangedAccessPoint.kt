@@ -18,7 +18,7 @@ data class RangedAccessPoint(
     }
 
     companion object {
-        fun newInstance(rangingResult: RangingResult) = RangedAccessPoint(rangingResult.macAddress.toString(), 0.0, System.currentTimeMillis())
+        fun newInstance(rangingResult: RangingResult) = RangedAccessPoint(rangingResult.macAddress.toString(), rangingResult.distanceMm.toDouble(), System.currentTimeMillis())
     }
 
 }

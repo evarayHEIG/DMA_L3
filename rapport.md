@@ -7,6 +7,8 @@
 
 ### Choix d'implémentation
 
+
+
 ### Questions
 
 > 1.1 Par rapport à un seul AP, que pouvez-vous dire sur la précision de la distance estimée ?
