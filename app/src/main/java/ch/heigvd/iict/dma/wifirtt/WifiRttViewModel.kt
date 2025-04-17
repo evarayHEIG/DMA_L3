@@ -7,8 +7,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.map
 import ch.heigvd.iict.dma.wifirtt.config.MapConfig
-import ch.heigvd.iict.dma.wifirtt.config.MapConfigs
 import ch.heigvd.iict.dma.wifirtt.config.MapConfigs.b30
+import ch.heigvd.iict.dma.wifirtt.config.MapConfigs.levelB
 import ch.heigvd.iict.dma.wifirtt.models.RangedAccessPoint
 import com.lemmingapex.trilateration.NonLinearLeastSquaresSolver
 import com.lemmingapex.trilateration.TrilaterationFunction
@@ -40,7 +40,7 @@ class WifiRttViewModel : ViewModel() {
 
     // CONFIGURATION MANAGEMENT
     // TODO change map here
-    private val _mapConfig = MutableLiveData(MapConfigs.b30)
+    private val _mapConfig = MutableLiveData(b30)
     val mapConfig : LiveData<MapConfig> get() = _mapConfig
 
     fun onNewRangingResults(newResults : List<RangingResult>) {
@@ -90,7 +90,7 @@ class WifiRttViewModel : ViewModel() {
 
         // you should post the coordinates [x, y, height] of the estimated position in _estimatedPosition
         // in the second experiment, you can hardcode the height as 0.0
-       val currAccessPoints = accessPointList.filter { ap -> mapConfig.value?.accessPointKnownLocations?.get(ap.bssid) != null }.sortedBy { it.distanceMm }.take(3)
+       val currAccessPoints = accessPointList.filter { ap -> mapConfig.value?.accessPointKnownLocations?.get(ap.bssid) != null }.sortedBy { it.distanceMm }
 
         val distances = mutableListOf<Double>()
         val positions = mutableListOf<DoubleArray>()
@@ -99,7 +99,7 @@ class WifiRttViewModel : ViewModel() {
             val apLocation = mapConfig.value?.accessPointKnownLocations?.get(ap.bssid)
             if (apLocation != null) {
                 distances.add(ap.distanceMm)
-                positions.add(doubleArrayOf(apLocation.xMm.toDouble(), apLocation.yMm.toDouble(), 0.0))
+                positions.add(doubleArrayOf(apLocation.xMm.toDouble(), apLocation.yMm.toDouble(), apLocation.heightMm.toDouble()))
             }
         }
 
@@ -114,19 +114,19 @@ class WifiRttViewModel : ViewModel() {
             val optimum = solver.solve()
 
             val centroid = optimum.point.toArray()
-            Log.e("estimateLocation", "Centroid: ${centroid.joinToString()}")
+            Log.e(TAG, "Centroid: ${centroid.joinToString()}")
             _estimatedPosition.postValue(centroid)
         } else {
-            Log.e("estimateLocation", "Insufficient or mismatched data for trilateration")
-            // Handle error appropriately
+            Log.e(TAG, "Insufficient or mismatched data for trilateration")
+
         }
 
-        //as well as the distances with each access point as a MutableMap<String, Double>
+
 
         val distanceMap = mutableMapOf<String, Double>()
 
         currAccessPoints.forEach { ap ->
-            distanceMap[ap.bssid] = ap.distanceMm.toDouble()
+            distanceMap[ap.bssid] = ap.distanceMm
         }
         _estimatedDistances.postValue(distanceMap)
     }

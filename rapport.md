@@ -35,3 +35,4 @@
 > implique ? La configuration pour l’étage B contient la hauteur des AP et vous permet donc de faire
 > des tests.
 
+Oui, il est possible de déterminer la hauteur du mobile par trilatération. 
