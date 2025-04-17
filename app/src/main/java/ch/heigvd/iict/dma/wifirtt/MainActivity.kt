@@ -2,12 +2,8 @@ package ch.heigvd.iict.dma.wifirtt
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.net.wifi.ScanResult
 import android.net.wifi.WifiManager
 import android.net.wifi.rtt.RangingRequest
 import android.net.wifi.rtt.RangingResult
@@ -20,29 +16,40 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.annotation.RequiresPermission
-import androidx.core.app.ActivityCompat
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import ch.heigvd.iict.dma.wifirtt.databinding.ActivityMainBinding
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.util.Timer
 import kotlin.concurrent.timer
 
+/**
+ * Main activity of the application.
+ *
+ * Handles:
+ * - UI setup and navigation
+ * - Permission requests for Wi-Fi RTT
+ * - Initialization of Wi-Fi and RTT managers
+ * - Periodic ranging using Wi-Fi RTT
+ *
+ * @author Rachel Tranchida
+ * @author Yanis Ouadahi
+ * @author Eva Ray
+ */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
+    /** ViewModel managing Wi-Fi RTT state and data */
     private val wifiRttViewModel : WifiRttViewModel by viewModels()
 
+    /** Used to scan for nearby Wi-Fi access points */
     private lateinit var wifiManager: WifiManager
+
+    /** Used to perform Wi-Fi RTT ranging */
     private lateinit var wifiRttManager : WifiRttManager
-
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,6 +97,11 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    /**
+     * Performs a Wi-Fi RTT ranging scan using nearby 802.11mc-compatible access points.
+     *
+     * Results are sent to the ViewModel on success, or an empty list on failure.
+     */
     @SuppressLint("MissingPermission")
     fun scanAndRange() {
 
@@ -101,28 +113,30 @@ class MainActivity : AppCompatActivity() {
         }
         try {
             wifiRttManager.startRanging(req, mainExecutor, object : RangingResultCallback() {
+
+                /**
+                 * Called when ranging results are successfully obtained.
+                 */
                 override fun onRangingResults(results: List<RangingResult>) {
                     val successResults = results.filter { it.status == RangingResult.STATUS_SUCCESS }
                     wifiRttViewModel.onNewRangingResults(successResults)
                     Log.d(TAG, "$successResults")
                 }
 
-
+                /**
+                 * Called when the ranging operation fails.
+                 */
                 override fun onRangingFailure(code: Int) {
                     Log.e(TAG, "Ranging failure: $code")
-                    // Optionally notify ViewModel about the failure
-                    // wifiRttViewModel.onRangingFailed(code)
                 }
             })
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException during ranging: ${e.message}")
-            // Handle permission issues more explicitly
             wifiRttViewModel.onNewRangingResults(emptyList())
         } catch (e: IllegalStateException) {
             Log.e(TAG, "IllegalStateException during ranging: ${e.message}")
             wifiRttViewModel.onNewRangingResults(emptyList())
         }
-
     }
 
     private var rangingTask : Timer? = null
@@ -136,9 +150,8 @@ class MainActivity : AppCompatActivity() {
                 rangingTask?.cancel() // we cancel eventual previous task
                 rangingTask =
                     timer("ranging_timer", daemon = false, initialDelay = 500, period = 250) {
-                        //TODO implement ranging with
+                        // implement ranging with valid ranging results should be pass to viewmodel using
                         scanAndRange()
-                        // valid ranging results should be pass to viewmodel using
                     }
             }
         }
