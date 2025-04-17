@@ -90,17 +90,17 @@ class WifiRttViewModel : ViewModel() {
 
         // you should post the coordinates [x, y, height] of the estimated position in _estimatedPosition
         // in the second experiment, you can hardcode the height as 0.0
-       val currAccessPoints = accessPointList.filter { ap -> mapConfig.value?.accessPointKnownLocations?.get(ap.bssid) != null }.sortedBy { it.distanceMm }
+       val currAccessPoints = accessPointList.filter { ap -> mapConfig.value?.accessPointKnownLocations?.get(ap.bssid) != null }.sortedBy { it.distanceMm }.take(4)
 
         val distances = mutableListOf<Double>()
         val positions = mutableListOf<DoubleArray>()
 
-            currAccessPoints.forEach { ap ->
-            val apLocation = mapConfig.value?.accessPointKnownLocations?.get(ap.bssid)
-            if (apLocation != null) {
-                distances.add(ap.distanceMm)
-                positions.add(doubleArrayOf(apLocation.xMm.toDouble(), apLocation.yMm.toDouble(), apLocation.heightMm.toDouble()))
-            }
+        currAccessPoints.forEach { ap ->
+        val apLocation = mapConfig.value?.accessPointKnownLocations?.get(ap.bssid)
+        if (apLocation != null) {
+            distances.add(ap.distanceMm)
+            positions.add(doubleArrayOf(apLocation.xMm.toDouble(), apLocation.yMm.toDouble(), apLocation.heightMm.toDouble()))
+        }
         }
 
         val positionsArray = positions.toTypedArray()
