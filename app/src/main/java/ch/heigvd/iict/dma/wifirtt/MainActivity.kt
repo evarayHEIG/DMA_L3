@@ -105,12 +105,15 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     fun scanAndRange() {
 
-        Log.e("scanned", wifiManager.scanResults.toString())
+        val scanResults =   wifiManager.scanResults.filter{it.is80211mcResponder}
+        if (scanResults.isEmpty()) return
         val req: RangingRequest = RangingRequest.Builder().run {
-            wifiManager.scanResults.filter{it.is80211mcResponder}.forEach{result -> addAccessPoint(result)}
+            scanResults.forEach{result -> addAccessPoint(result)}
 
             build()
         }
+        Log.e(TAG, "Ranging request: $req")
+
         try {
             wifiRttManager.startRanging(req, mainExecutor, object : RangingResultCallback() {
 
