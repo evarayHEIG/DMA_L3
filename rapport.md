@@ -10,13 +10,71 @@
 En testant l'application sur plusieurs mobiles, nous avons pu constater une différence de précision
 assez importante selon l'appareil utilisé. En effet, nous avons utilisé un Samsung Galaxy 21 Plus (janvier 2021) 
 et un Pixel 3a (mai 2019) pour tester l'application et le Pixel 3a permettait un positionnement bien plus précis
-que le S21+
+que le S21+ pour la deuxième manipulation. Le pixel 3a permettait d'obtenir une précision entre 0.6 à 1.5m, alors que le S21+,
+pour la même manipulation, donnait une précision entre 0.8 à 3.5m. En observant les logs, il semble que le pixel 3a
+détecte les APS de manière plus stable et précise que le S21+, il n'y avait jamais de scan qui ne détectait aucun AP.
+Ces différences peuvent avoir plusieurs causes:
+- La qualité d'implémentation des pilotes Wi-Fi
+- Les restrictions logicielles (accès développeur)
+- Les différences matérielles (antenne, calibrage, etc.)
+Après avoir fait quelques recherches, il semble que les smartphones Google Pixel soient reconnus pour leur
+prise en charge complète et optimisée d Wi-Fi RTT.
+
+Cette observation est importante car elle montre que la précision de la localisation en intérieur peut varier
+selon le smartphone utilisé et cela indépendamment de la manière dont l'application est implémentée.
 
 ## Manipulation 1: Lister les AP à portée
 
 ### Choix d'implémentation
 
+#### Détection des points d’accès compatibles Wi-Fi RTT
 
+La détection des points d’accès (AP) se fait directement dans la méthode ``scanAndRange()`` à l’aide du service système 
+``WifiManager``. Ce service permet d’accéder à la liste des AP récemment détectés grâce à la propriété ``scanResults``. Cette 
+liste contient des objets de type ``ScanResult``, chacun représentant un point d’accès visible à l’instant du scan.
+
+```kotlin
+val scanResults = wifiManager.scanResults
+```
+
+Pour utiliser le Wi-Fi RTT (Round-Trip-Time) basé sur la norme 802.11mc, il est nécessaire de filtrer cette liste afin 
+de ne conserver que les AP compatibles avec cette technologie. Chaque objet ``ScanResult`` expose une propriété 
+``is80211mcResponder`` qui permet d’identifier si l’AP supporte le protocole de ranging.
+
+```kotlin	
+val rttCapableAps = scanResults.filter { it.is80211mcResponder }
+```
+
+Une fois cette filtration effectuée, les AP compatibles sont ajoutés à une requête de ranging (``RangingRequest``) via un 
+``RangingRequest.Builder``. Cette requête est ensuite utilisée pour lancer une opération de mesure de distances :
+
+```kotlin
+val req: RangingRequest = RangingRequest.Builder().apply {
+    rttCapableAps.forEach { addAccessPoint(it) }
+}.build()
+```
+
+#### Garder les APs non détectés pendant 15 secondes
+
+La classe ``WifiRttViewModel`` garde une trace locale des points d’accès mesurés via RTT dans une liste mutable interne 
+appelée ``accessPointList``. Cette liste contient des objets de type ``RangedAccessPoint``, chacun représentant un point d’accès 
+ayant répondu à une requête de mesure RTT. C'est l'attribut ``age`` de la classe ``RangedAccessPoint`` qui permet de 
+savoir si un AP a été détecté récemment.
+
+La gestion de `accessPointList` est effectuée dans la méthode `onNewRangingResults()` qui est appelée chaque fois que
+de nouveaux résultats de ranging sont disponibles. Dans cette méthode, nous mettons à jour la liste des APs détectés
+en les ajoutant s'ils ne sont pas déjà présents ou en mettant à jour leur attribut `age` s'ils le sont. Si un AP n'a pas été
+perçu depuis 15 secondes, il est supprimé de la liste.
+
+```kotlin
+accessPointList.removeAll { currentTime - it.age > 15000 }
+```
+
+Une fois la liste mise à jour, nous la postons dans la LiveData `_rangedAccessPoints`, puis nous estimons la distance
+des APs détectés par rapport au smartphone en utilisant la méthode `estimateDistance()`.
+
+C'est une manière simple et efficace de garder une trace des APs détectés, en s'assurant que seuls les APs récents sont pris en compte,
+sans créer un objet plus conséquent, comme une classe de caching.
 
 ### Questions
 
@@ -25,7 +83,8 @@ que le S21+
 > influence sur la précision ? Est-ce que faire une moyenne sur plusieurs mesures permet d’avoir une
 > estimation plus fiable de la distance ?
 
-Avec un seul AP, nous disposons uniquement d'une zone, un cercle, mais il est impossible de déterminer "où" nous nous trouvons sur ce cercle. Au lieu d'une localisation précise, un point, nous avons donc plutôt un périmètre dans laquelle nous pouvons nous trouver.
+Avec un seul AP, nous disposons uniquement d'une zone, un cercle, mais il est impossible de déterminer "où" nous nous 
+trouvons sur ce cercle. Au lieu d'une localisation précise, un point, nous avons donc plutôt un périmètre dans laquelle nous pouvons nous trouver.
 
 Oui la présence d'un obstacle a une influence sur la précision. En effet, si un obstacle est présent, 
 la force du signal peut être diminuée et il peut également y avoir des effets multipath où le signal
@@ -81,8 +140,6 @@ un AP n'est plus détecté car trop loin mais est persisté avec la distance de 
 Il n'y a pas nécessairement besoin de tous les APs. En effet, on peut se contenter de 3 APs pour une localisation en 2D
 et de 4 APs pour une localisation en 3D. Néanmoins, en limitant, le nombre d'AP, le plus judicieux est d'utiliser les APs les plus
 proches pour le calcul.
-
-
 
 > 2.2 Pouvons-nous déterminer la hauteur du mobile par trilatération ? Si oui qu’est-ce que cela
 > implique ? La configuration pour l’étage B contient la hauteur des AP et vous permet donc de faire
